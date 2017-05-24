@@ -10,18 +10,20 @@ SCREEN_HEIGHT = 640
 FPS = 60
 GRID_SIZE = 64
 
-class TextBlitter():
-    def __init__(self):
+
+class Text():
+    # just static methods here
+    
+    def display_message(screen):
         pass
 
-    def do_something(self, screen):
-        pass
+class Images():
+    # just static methods here
 
-class ImageManager():
-    def __init__(self):
+    def load_image(file_path):
         pass
-
-    def load_image(self):
+    
+    def load_scaled_image(file_path, width=GRID_SIZE, height=GRID_SIZE):
         pass
 
 class SoundManager():
@@ -54,6 +56,7 @@ class Entity(pygame.sprite.Sprite):
         pass
 
     def update(self):
+        # don't need this stub. all sprites have 'update'
         pass
 
 class Hero(Entity):
@@ -87,6 +90,12 @@ class Enemy(Entity):
     def reverse(self):
         pass
 
+    def check_level_boundaries(self, level):
+        pass
+
+    def move_and_process_blocks(self, blocks):
+        pass
+
     def update(self, level, hero):
         pass
 
@@ -99,10 +108,10 @@ class Item(Entity):
         value = self.value
 
     def apply(self, character):
-        pass
+        raise NotImplementedError
 
     def update(self):
-        pass
+        raise NotImplementedError
 
 class Level():
     def __init__(self, level_file):
@@ -116,28 +125,32 @@ class Level():
 
 
 class Scene():
-    def __init__():
-        pass
+    def __init__(self, game):
+        self.game = game
 
     def process_input(self, events, pressed_keys):
-        pass
+        raise NotImplementedError
 
     def update(self, game):
-        pass
+        raise NotImplementedError
 
     def render(self, screen):
-        pass
+        raise NotImplementedError
 
 
 class Splash(Scene):
-    def __init__(self):
-        pass
-
+    def __init__(self, game):
+        self.game = game
+        self.next_scene = Playing(game, 0)
+        
     def process_input(self, events, pressed_keys):
+        # first the events
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    pass
+                    game.change_scene(next_scene)
+
+        # then the pressed_keys
 
     def update(self, game):
         pass
@@ -148,21 +161,26 @@ class Splash(Scene):
 
 class Playing(Scene):
 
-    def __init__(self):
-        pass
+    def __init__(self, game, level):
+        super().__init__(game)
 
-    def update(self, game):
+        self.level = level
+        # next_scene = ?
+        
+    def update(self):
         pass
 
     def render(self, screen):
         pass
 
+'''
+# These might be better handled as states in Playing scene
 class Paused(Scene):
 
-    def __init__(self):
-        pass
+    def __init__(self, game):
+        super().__init__(self, game)
 
-    def update(self, game):
+    def update(self):
         pass
 
     def render(self, screen):
@@ -170,47 +188,45 @@ class Paused(Scene):
 
 class LevelComplete(Scene):
 
-    def __init__(self):
-        pass
+    def __init__(self, game):
+        super().__init__(self, game)
 
-    def update(self, game):
+    def update(self):
         pass
 
     def render(self, screen):
         pass
+'''
 
 class GameOver(Scene):
+    
     def __init__(self):
-        pass
+        super().__init__(self, game)
 
-    def update(self, game):
+    def update(self):
         pass
 
     def render(self, screen):
         pass
 
 class Victory(Scene):
-    def __init__(self):
-        pass
+    
+    def __init__(self, game):
+        super().__init__(self, game)
 
-    def update(self, game):
+    def update(self):
         pass
 
     def render(self, screen):
         pass
 
 
-class SceneManager():
-    def __init__(self, current_scene):
-        self.current_scene = current_scene
-
-    def advance(self, next_scene):
-        self.current_scene = next_scene
-
-
 class MyGame():
-    def __init__(self, start_scene):
-        self.current_scene = start_scene
+    def __init__(self):
+        self.current_scene = Splash(self)
+
+    def change_scene(self, next_scene):
+        self.current_scene = next_scene
 
     def run(self):
         screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
@@ -239,8 +255,7 @@ class MyGame():
             # wait a bit
             clock.tick(FPS)
 
-if __name__ == "__main__":
-    start_scene = Splash()
-    game = MyGame(start_scene)
+if __name__ == "__main__":    
+    game = MyGame()
     game.run()
     pygame.quit()
