@@ -13,7 +13,7 @@ GRID_SIZE = 64
 
 class Text():
     # just static methods here
-    
+
     def display_message(screen):
         pass
 
@@ -22,7 +22,7 @@ class Images():
 
     def load_image(file_path):
         pass
-    
+
     def load_scaled_image(file_path, width=GRID_SIZE, height=GRID_SIZE):
         pass
 
@@ -142,7 +142,7 @@ class Splash(Scene):
     def __init__(self, game):
         self.game = game
         self.next_scene = Playing(game, 0)
-        
+
     def process_input(self, events, pressed_keys):
         # first the events
         for event in events:
@@ -166,7 +166,7 @@ class Playing(Scene):
 
         self.level = level
         # next_scene = ?
-        
+
     def update(self):
         pass
 
@@ -199,7 +199,7 @@ class LevelComplete(Scene):
 '''
 
 class GameOver(Scene):
-    
+
     def __init__(self):
         super().__init__(self, game)
 
@@ -210,7 +210,7 @@ class GameOver(Scene):
         pass
 
 class Victory(Scene):
-    
+
     def __init__(self, game):
         super().__init__(self, game)
 
@@ -228,6 +228,11 @@ class MyGame():
     def change_scene(self, next_scene):
         self.current_scene = next_scene
 
+    def is_quit_event(self, event):
+        # could add CTRL-Q as quit event here too
+        return (event.type == pygame.QUIT or
+                event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)
+
     def run(self):
         screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
         pygame.display.set_caption(TITLE)
@@ -238,7 +243,7 @@ class MyGame():
             # get events
             filtered_events = []
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+                if self.is_quit_event(event):
                     running = False
                 else:
                     filtered_events.append(event)
@@ -255,7 +260,7 @@ class MyGame():
             # wait a bit
             clock.tick(FPS)
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     game = MyGame()
     game.run()
     pygame.quit()
