@@ -10,6 +10,9 @@ SCREEN_HEIGHT = 640
 FPS = 60
 GRID_SIZE = 64
 
+# Options
+sound_on = True
+
 # Levels
 levels = ["levels/world-1.json",
           "levels/world-2.json",
@@ -28,8 +31,6 @@ FONT_LG = pygame.font.Font("assets/fonts/thats_super.ttf", 72)
 
 # Some helper classes
 class TextUtil():
-    # just static methods here
-
     def display_message(surface, primary_text, secondary_text=None):
         w = surface.get_width()
         h = surface.get_height()
@@ -46,7 +47,6 @@ class TextUtil():
             surface.blit(line2, (x2, y2))
 
 class ImageUtil():
-    # just static methods here
     # is it necessary to reconvert an image after transforming?
 
     def load_image(file_path):
@@ -62,18 +62,18 @@ class ImageUtil():
     def reverse_images(img_list):
         return [reverse_image(img) for img in img_list]
 
-class SoundManager():
-    def __init__(self):
-        self.muted = False
-
+class SoundUtil():
     def toggle_mute(self):
-        self.muted = not self.muted
+        global sound_on
+        sound_on = not sound_on
 
-    def play_sound(self):
-        pass
+    def play_sound(sound, loops=0, maxtime=0, fade_ms=0):
+        if sound_on:
+            sound.play(loops, maxtime, fade_ms)
 
     def play_music(self):
-        pass
+        if sound_on:
+            pygame.mixer.music.play(-1)
 
 # Game entities
 class Entity(pygame.sprite.Sprite):
@@ -156,12 +156,6 @@ class Coin(Item):
     def apply(self, character):
         character.score += self.value
 
-    def update(self):
-        '''
-        Coins don't do anything.
-        '''
-        pass
-
 class Heart(Item):
     def __init__(self):
         pass
@@ -188,7 +182,7 @@ class Scene():
 
     def terminate(self):
         self.next_scene = None
-        
+
 class TitleScene(Scene):
     def __init__(self):
         super().__init__()
