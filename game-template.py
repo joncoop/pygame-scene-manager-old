@@ -26,7 +26,6 @@ FONT_SM = pygame.font.Font("assets/fonts/minya_nouvelle_bd.ttf", 32)
 FONT_MD = pygame.font.Font("assets/fonts/minya_nouvelle_bd.ttf", 64)
 FONT_LG = pygame.font.Font("assets/fonts/thats_super.ttf", 72)
 
-
 # Some helper classes
 class TextUtil():
     # just static methods here
@@ -34,7 +33,7 @@ class TextUtil():
     def display_message(surface, primary_text, secondary_text=None):
         w = surface.get_width()
         h = surface.get_height()
-        
+
         line1 = FONT_MD.render(primary_text, 1, WHITE)
         x1 = w / 2 - line1.get_width() / 2;
         y1 = h / 3 - line1.get_height() / 2;
@@ -76,6 +75,7 @@ class SoundManager():
     def play_music(self):
         pass
 
+# Game entities
 class Entity(pygame.sprite.Sprite):
     def __init__(self):
         pass
@@ -169,6 +169,7 @@ class Heart(Item):
     def apply(self, character):
         character.hearts += 1
 
+# Scenes
 class Scene():
     def __init__(self):
         self.next_scene = self
@@ -185,7 +186,10 @@ class Scene():
     def change_to_scene(self, next_scene):
         self.next_scene = next_scene
 
-class Splash(Scene):
+    def terminate(self):
+        self.next_scene = None
+        
+class TitleScene(Scene):
     def __init__(self):
         super().__init__()
 
@@ -193,7 +197,7 @@ class Splash(Scene):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
-                    self.change_to_scene(Level(0))
+                    self.change_to_scene( Level(0) )
 
     def update(self):
         pass
@@ -205,7 +209,7 @@ class Splash(Scene):
 class Level(Scene):
     def __init__(self, level_num):
         super().__init__()
-        
+
         self.level_num = level_num
         self.completed = False
         self.paused = False
@@ -228,13 +232,12 @@ class Level(Scene):
                     if event.key == pygame.K_SPACE:
                         # advance to next scene
                         self.level_num += 1
-                        
-                        if self.level_num < len(levels):
-                            next_scene = Level(self.level_num)
-                        else:
-                            next_scene = Victory()
 
-                        self.change_to_scene(next_scene)
+                        if self.level_num < len(levels):
+                            self.change_to_scene( Level(self.level_num) )
+                        else:
+                            self.change_to_scene( Victory() )
+
                 else:
                     if event.key == pygame.K_p:
                         # toggle paused state
@@ -247,7 +250,6 @@ class Level(Scene):
                         # temp stuff for scene testing
                         if event.key == pygame.K_c:
                             self.completed = True
-                            
 
         if not (self.completed or self.paused):
             # deal with actions bound to pressed keys
@@ -262,7 +264,7 @@ class Level(Scene):
         surface.fill(BLACK)
         if not (self.completed or self.paused):
             TextUtil.display_message(surface, str(self.level_num))
-        
+
         # special messages
         if self.completed:
             TextUtil.display_message(surface, "Level complete!", "Press SPACE to continue.")
@@ -288,18 +290,22 @@ class Victory(Scene):
         super().__init__()
 
     def process_input(self, events, pressed_keys):
-        pass
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.change_to_scene( TitleScene() )
 
     def update(self):
         pass
 
     def render(self, surface):
         surface.fill(BLACK)
-        TextUtil.display_message(surface, "You win!")
+        TextUtil.display_message(surface, "You win!", "Press SPACE to restart.")
 
+# The actual game
 class MyGame():
     def __init__(self):
-        self.active_scene = Splash()
+        self.active_scene = TitleScene()
 
     def is_quit_event(self, event, pressed_keys):
         x_out = event.type == pygame.QUIT
@@ -311,9 +317,7 @@ class MyGame():
         return x_out or ctrl_q
 
     def run(self):
-        running = True
-
-        while running:
+        while self.active_scene != None:
             # poll input states
             pressed_keys = pygame.key.get_pressed()
 
@@ -321,20 +325,19 @@ class MyGame():
             filtered_events = []
             for event in pygame.event.get():
                 if self.is_quit_event(event, pressed_keys):
-                    running = False
+                    self.active_scene.terminate()
                 else:
                     filtered_events.append(event)
 
-            # game logic            
-            if running:
-                self.active_scene.process_input(filtered_events, pressed_keys)
-                self.active_scene.update()
-                self.active_scene.render(screen)
-                self.active_scene = self.active_scene.next_scene
+            # game logic
+            self.active_scene.process_input(filtered_events, pressed_keys)
+            self.active_scene.update()
+            self.active_scene.render(screen)
+            self.active_scene = self.active_scene.next_scene
 
             # update screen
             pygame.display.flip()
-            
+
             # wait a bit
             clock.tick(FPS)
 
