@@ -313,8 +313,7 @@ class TitleScene(Scene):
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    self.change_to_scene( Level(self.hero, 0) )
+                self.change_to_scene( Level(self.hero, 0) )
 
     def update(self):
         '''
@@ -324,7 +323,7 @@ class TitleScene(Scene):
 
     def render(self, screen):
         screen.fill(BLACK)
-        TextUtil.display_message(screen, "Name of Game", "Press SPACE to start.")
+        TextUtil.display_message(screen, "Name of Game", "Ready?!!! Press any key to start.")
 
 class Level(Scene):
     def __init__(self, hero, level_num):
@@ -512,7 +511,7 @@ class Level(Scene):
 
         # special messages
         if self.completed:
-            TextUtil.display_message(surface, "Level complete!", "Press SPACE to continue.")
+            TextUtil.display_message(surface, "Level complete!", "Press any key to continue.")
         elif self.paused:
             TextUtil.display_message(surface, "Paused", "Press 'P' to continue.")
 
@@ -524,7 +523,7 @@ class GameOver(Scene):
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_r:
                     self.change_to_scene( TitleScene() )
 
     def update(self):
@@ -532,7 +531,7 @@ class GameOver(Scene):
 
     def render(self, surface):
         surface.fill(BLACK)
-        TextUtil.display_message(surface, "Game Over")
+        TextUtil.display_message(surface, "Game Over", "Press 'R' to restart.")
 
 class Victory(Scene):
     def __init__(self, hero):
@@ -542,7 +541,7 @@ class Victory(Scene):
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_r:
                     self.change_to_scene( TitleScene() )
 
     def update(self):
@@ -550,7 +549,7 @@ class Victory(Scene):
 
     def render(self, surface):
         surface.fill(BLACK)
-        TextUtil.display_message(surface, "You win!", "Press SPACE to restart.")
+        TextUtil.display_message(surface, "You win!", "Press 'R' to restart.")
 
 # The actual game
 class MyGame():
