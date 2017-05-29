@@ -95,10 +95,10 @@ item_images = {"Coin": ImageUtil.load_scaled_image("assets/items/coin.png"),
                "Heart": ImageUtil.load_scaled_image("assets/items/bandaid.png"),
                "OneUp": ImageUtil.load_scaled_image("assets/items/first_aid.png")}
 
-hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/character/adventurer_walk1.png"),
-                        ImageUtil.load_scaled_image("assets/character/adventurer_walk2.png")],
-               "Jump": [ImageUtil.load_scaled_image("assets/character/adventurer_jump.png")],
-               "Idle": [ImageUtil.load_scaled_image("assets/character/adventurer_idle.png")]}
+hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk1.png"),
+                        ImageUtil.load_scaled_image("assets/hero/adventurer_walk2.png")],
+               "Jump": [ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png")],
+               "Idle": [ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")]}
 
 # Game entities
 class Entity(pygame.sprite.Sprite):
@@ -122,7 +122,7 @@ class Entity(pygame.sprite.Sprite):
 
     def apply_gravity(self, level):
         self.vy += level.gravity
-        self.vy = min(level.gravity, level.terminal_velocity)
+        #self.vy = min(level.gravity, level.terminal_velocity)
 
 class Block(Entity):
     def __init__(self, image, x, y):
@@ -131,12 +131,58 @@ class Block(Entity):
 class Hero(Entity):
     def __init__(self, all_images):
         super().__init__(all_images['Idle'][0])
-        
-    def check_boundaries(self, level):
-        pass
 
+        self.speed = 5
+        self.jump_power = 20
+        
+    def move_left(self):
+        self.vx = -self.speed
+
+    def move_right(self):
+        self.vx = self.speed
+
+    def stop(self):
+        self.vx = 0
+        
+    def jump(self, level):
+        self.rect.y += 2
+
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
+
+        if len(hit_list) > 0:
+            self.vy = -1 * self.jump_power
+            #play_sound(JUMP_SOUND)
+
+        self.rect.y -= 2
+
+    def check_boundaries(self, level):
+        if self.rect.left < 0:
+            self.rect.left = 0
+        elif self.rect.right > level.width:
+            self.rect.right = level.width
+            
     def move_and_process_blocks(self, blocks):
-        pass
+        self.rect.x += self.vx
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        for block in hit_list:
+            if self.vx > 0:
+                self.rect.right = block.rect.left
+                self.vx = 0
+            elif self.vx < 0:
+                self.rect.left = block.rect.right
+                self.vx = 0
+
+        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        for block in hit_list:
+            if self.vy > 0:
+                self.rect.bottom = block.rect.top
+                self.vy = 0
+            elif self.vy < 0:
+                self.rect.top = block.rect.bottom
+                self.vy = 0
 
     def process_items(self, items):
         pass
@@ -154,7 +200,7 @@ class Hero(Entity):
     def reset(self, level):
         self.rect.x = level.start_x * GRID_SIZE
         self.rect.y = level.start_y * GRID_SIZE
-        
+
 class Enemy(Entity):
     def __init__(self, all_images, x, y):
         super().__init__(all_images['Idle'][0], x, y)
@@ -221,7 +267,7 @@ class Scene():
 
     def render(self, surface):
         raise NotImplementedError
-        
+
     def change_to_scene(self, next_scene):
         self.next_scene = next_scene
 
@@ -282,15 +328,15 @@ class Level(Scene):
         self.width = map_data['width'] * GRID_SIZE
         self.height = map_data['height'] * GRID_SIZE
 
-        self.gravity = map_data['gravity']
-        self.terminal_velocity = map_data['terminal-velocity']
-
         self.inactive_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
         self.active_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
 
+        self.gravity = map_data['gravity']
+        self.terminal_velocity = map_data['terminal-velocity']
+
         self.start_x = map_data['start'][0]
         self.start_y = map_data['start'][1]
-        
+
         for item in map_data['blocks']:
             x, y, kind = item[0], item[1], item[2]
             img = block_images[kind]
@@ -315,8 +361,9 @@ class Level(Scene):
 
     def setup(self):
         self.hero.reset(self)
+        self.blocks.add(self.starting_blocks)
         self.items.add(self.starting_items)
-        
+
         self.active_sprites.add(self.hero, self.items)
 
     def process_input(self, events, pressed_keys):
@@ -339,7 +386,8 @@ class Level(Scene):
 
                     if not self.paused:
                         # deal with actions bound to game events such as jumping
-                        pass
+                        if event.key == pygame.K_SPACE:
+                            self.hero.jump(self)
 
                         # temp stuff for scene testing
                         if event.key == pygame.K_c:
@@ -347,7 +395,12 @@ class Level(Scene):
 
         if not (self.completed or self.paused):
             # deal with actions bound to pressed keys
-            pass
+            if pressed_keys[pygame.K_LEFT]:
+                self.hero.move_left()
+            elif pressed_keys[pygame.K_RIGHT]:
+                self.hero.move_right()
+            else:
+                self.hero.stop()
 
     def update(self):
         if not (self.completed or self.paused):
@@ -355,17 +408,18 @@ class Level(Scene):
 
     def render(self, surface):
         surface.fill(BLACK)
-        if not (self.completed or self.paused):
-            self.active_sprites.draw(self.active_layer)
+        
+        self.active_layer.fill(TRANSPARENT)
+        self.active_sprites.draw(self.active_layer)
 
-            surface.blit(self.inactive_layer, [0, 0])
-            surface.blit(self.active_layer, [0, 0])
+        surface.blit(self.inactive_layer, [0, 0])
+        surface.blit(self.active_layer, [0, 0])
 
         # special messages
         if self.completed:
             TextUtil.display_message(surface, "Level complete!", "Press SPACE to continue.")
         elif self.paused:
-            pass
+            TextUtil.display_message(surface, "Paused", "Press 'P' to continue.")
 
 class GameOver(Scene):
     def __init__(self, hero):
@@ -389,7 +443,7 @@ class Victory(Scene):
     def __init__(self, hero):
         super().__init__()
         self.hero = hero
-        
+
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
