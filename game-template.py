@@ -366,6 +366,16 @@ class Level(Scene):
 
         self.active_sprites.add(self.hero, self.items)
 
+    def calculate_offset(self):
+        x = -1 * self.hero.rect.centerx + SCREEN_WIDTH / 2
+
+        if self.hero.rect.centerx < SCREEN_WIDTH / 2:
+            x = 0
+        elif self.hero.rect.centerx > self.width - SCREEN_WIDTH / 2:
+            x = -1 * self.width + SCREEN_WIDTH
+
+        return x, 0
+    
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
@@ -407,13 +417,15 @@ class Level(Scene):
             self.active_sprites.update(self)
 
     def render(self, surface):
+        offset_x, offset_y = self.calculate_offset()
+        
         surface.fill(BLACK)
         
         self.active_layer.fill(TRANSPARENT)
         self.active_sprites.draw(self.active_layer)
 
-        surface.blit(self.inactive_layer, [0, 0])
-        surface.blit(self.active_layer, [0, 0])
+        surface.blit(self.inactive_layer, [offset_x, offset_y])
+        surface.blit(self.active_layer, [offset_x, offset_y])
 
         # special messages
         if self.completed:
