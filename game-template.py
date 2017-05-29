@@ -61,6 +61,12 @@ class ImageUtil():
         img = pygame.image.load(file_path).convert_alpha()
         return pygame.transform.scale(img, (width, height))
 
+    def scale_to_height(height):
+        pass
+
+    def scale_to_width(width):
+        pass
+    
     def reverse_image(img):
         return pygame.transform.flip(img, 1, 0)
 
@@ -354,9 +360,52 @@ class Level(Scene):
         self.width = map_data['width'] * GRID_SIZE
         self.height = map_data['height'] * GRID_SIZE
 
+        self.background_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
+        self.scenery_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
         self.inactive_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
         self.active_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
 
+        if map_data['background-color'] != "":
+            self.background_layer.fill(map_data['background-color'])
+
+        if map_data['background-img'] != "":
+            background_img = ImageUtil.load_image(map_data['background-img'])
+
+            if map_data['background-fill-y']:
+                h = background_img.get_height()
+                w = int(background_img.get_width() * SCREEN_HEIGHT / h)
+                background_img = pygame.transform.scale(background_img, (w, SCREEN_HEIGHT))
+
+            if "top" in map_data['background-position']:
+                start_y = 0
+            elif "bottom" in map_data['background-position']:
+                start_y = self.height - background_img.get_height()
+
+            if map_data['background-repeat-x']:
+                for x in range(0, self.width, background_img.get_width()):
+                    self.background_layer.blit(background_img, [x, start_y])
+            else:
+                self.background_layer.blit(background_img, [0, start_y])
+
+        if map_data['scenery-img'] != "":
+            scenery_img = ImageUtil.load_image(map_data['scenery-img'])
+
+            if map_data['scenery-fill-y']:
+                h = scenery_img.get_height()
+                w = int(scenery_img.get_width() * SCREEN_HEIGHT / h)
+                scenery_img = pygame.transform.scale(scenery_img, (w, SCREEN_HEIGHT))
+
+            if "top" in map_data['scenery-position']:
+                start_y = 0
+            elif "bottom" in map_data['scenery-position']:
+                start_y = self.height - scenery_img.get_height()
+
+            if map_data['scenery-repeat-x']:
+                for x in range(0, self.width, scenery_img.get_width()):
+                    self.scenery_layer.blit(scenery_img, [x, start_y])
+            else:
+                self.scenery_layer.blit(scenery_img, [0, start_y])
+                
         self.gravity = map_data['gravity']
         self.terminal_velocity = map_data['terminal-velocity']
 
@@ -456,6 +505,8 @@ class Level(Scene):
         self.active_layer.fill(TRANSPARENT)
         self.active_sprites.draw(self.active_layer)
 
+        surface.blit(self.background_layer, [offset_x / 3, offset_y])
+        surface.blit(self.scenery_layer, [offset_x / 2, offset_y])
         surface.blit(self.inactive_layer, [offset_x, offset_y])
         surface.blit(self.active_layer, [offset_x, offset_y])
 
