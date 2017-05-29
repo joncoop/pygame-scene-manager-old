@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 
+import json
 import pygame
+
 pygame.init()
 
-# Window settings
+# Display settings
 TITLE = "Name of Game"
 SCREEN_WIDTH = 960
 SCREEN_HEIGHT = 640
@@ -29,6 +31,11 @@ FONT_SM = pygame.font.Font("assets/fonts/minya_nouvelle_bd.ttf", 32)
 FONT_MD = pygame.font.Font("assets/fonts/minya_nouvelle_bd.ttf", 64)
 FONT_LG = pygame.font.Font("assets/fonts/thats_super.ttf", 72)
 
+# Make the display
+screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
+pygame.display.set_caption(TITLE)
+clock = pygame.time.Clock()
+
 # Some helper classes
 class TextUtil():
     def display_message(surface, primary_text, secondary_text=None):
@@ -47,20 +54,18 @@ class TextUtil():
             surface.blit(line2, (x2, y2))
 
 class ImageUtil():
-    # is it necessary to reconvert an image after transforming?
-
     def load_image(file_path):
         return pygame.image.load(file_path).convert()
 
     def load_scaled_image(file_path, width=GRID_SIZE, height=GRID_SIZE):
-        img = load_image(file_path)
+        img = pygame.image.load(file_path).convert()
         return pygame.transform.scale(img, (width, height))
 
     def reverse_image(img):
         return pygame.transform.flip(img, 1, 0)
 
     def reverse_images(img_list):
-        return [reverse_image(img) for img in img_list]
+        return [pygame.transform.flip(img, 1, 0) for img in img_list]
 
 class SoundUtil():
     def toggle_mute(self):
@@ -74,6 +79,17 @@ class SoundUtil():
     def play_music(self):
         if sound_on:
             pygame.mixer.music.play(-1)
+
+class Assets():
+    block_types = {"TL": ImageUtil.load_scaled_image("assets/tiles/top_left.png"),
+                   "TM": ImageUtil.load_scaled_image("assets/tiles/top_middle.png"),
+                   "TR": ImageUtil.load_scaled_image("assets/tiles/top_right.png"),
+                   "ER": ImageUtil.load_scaled_image("assets/tiles/end_right.png"),
+                   "EL": ImageUtil.load_scaled_image("assets/tiles/end_left.png"),
+                   "TP": ImageUtil.load_scaled_image("assets/tiles/top.png"),
+                   "CN": ImageUtil.load_scaled_image("assets/tiles/center.png"),
+                   "LF": ImageUtil.load_scaled_image("assets/tiles/lone_float.png"),
+                   "SP": ImageUtil.load_scaled_image("assets/tiles/special.png")}
 
 # Game entities
 class Entity(pygame.sprite.Sprite):
@@ -90,6 +106,10 @@ class Entity(pygame.sprite.Sprite):
     def apply_gravity(self, level):
         self.vy += self.level.gravity
         self.vy = min(self.level.gravity, self.level.terminal_velocity)
+        
+class Block(Entity):
+    def __init__(self, x, y, kind):
+        pass
 
 class Hero(Entity):
     def __init__(self):
@@ -130,15 +150,11 @@ class Enemy(Entity):
     def update(self, level, hero):
         pass
 
-def Bear(Enemy):
+class Bear(Enemy):
     def __init__(self):
         pass
 
-def Monster(Enemy):
-    def __init__(self):
-        pass
-
-class Block(Entity):
+class Monster(Enemy):
     def __init__(self):
         pass
 
@@ -194,6 +210,9 @@ class TitleScene(Scene):
                     self.change_to_scene( Level(0) )
 
     def update(self):
+        '''
+        Use this if the TitleScene is animated.
+        '''
         pass
 
     def render(self, screen):
@@ -213,8 +232,22 @@ class Level(Scene):
     def load(self, level_num):
         data_file = levels[level_num]
 
+        self.starting_blocks = []
+
         with open(data_file, 'r') as f:
-            pass
+            data = f.read()
+
+        map_data = json.loads(data)
+
+        self.width = map_data['width'] * GRID_SIZE
+        self.height = map_data['height'] * GRID_SIZE
+
+        self.start_x = map_data['start'][0] * GRID_SIZE
+        self.start_y = map_data['start'][1] * GRID_SIZE
+
+        for item in map_data['blocks']:
+            x, y, kind = item[0], item[1], item[2]
+            self.starting_blocks.append( Block(x, y, kind) )
 
     def reset(self):
         pass
@@ -336,10 +369,6 @@ class MyGame():
             clock.tick(FPS)
 
 if __name__ == "__main__":
-    screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
-    pygame.display.set_caption(TITLE)
-    clock = pygame.time.Clock()
-
     game = MyGame()
     game.run()
     pygame.quit()
