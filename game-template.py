@@ -80,21 +80,29 @@ class SoundUtil():
         if sound_on:
             pygame.mixer.music.play(-1)
 
-class Assets():
-    block_types = {"TL": ImageUtil.load_scaled_image("assets/tiles/top_left.png"),
-                   "TM": ImageUtil.load_scaled_image("assets/tiles/top_middle.png"),
-                   "TR": ImageUtil.load_scaled_image("assets/tiles/top_right.png"),
-                   "ER": ImageUtil.load_scaled_image("assets/tiles/end_right.png"),
-                   "EL": ImageUtil.load_scaled_image("assets/tiles/end_left.png"),
-                   "TP": ImageUtil.load_scaled_image("assets/tiles/top.png"),
-                   "CN": ImageUtil.load_scaled_image("assets/tiles/center.png"),
-                   "LF": ImageUtil.load_scaled_image("assets/tiles/lone_float.png"),
-                   "SP": ImageUtil.load_scaled_image("assets/tiles/special.png")}
+# Game assets
+block_types = {"TL": ImageUtil.load_scaled_image("assets/tiles/top_left.png"),
+               "TM": ImageUtil.load_scaled_image("assets/tiles/top_middle.png"),
+               "TR": ImageUtil.load_scaled_image("assets/tiles/top_right.png"),
+               "ER": ImageUtil.load_scaled_image("assets/tiles/end_right.png"),
+               "EL": ImageUtil.load_scaled_image("assets/tiles/end_left.png"),
+               "TP": ImageUtil.load_scaled_image("assets/tiles/top.png"),
+               "CN": ImageUtil.load_scaled_image("assets/tiles/center.png"),
+               "LF": ImageUtil.load_scaled_image("assets/tiles/lone_float.png"),
+               "SP": ImageUtil.load_scaled_image("assets/tiles/special.png")}
 
 # Game entities
 class Entity(pygame.sprite.Sprite):
-    def __init__(self):
-        pass
+    def __init__(self, x, y, image):
+        super().__init__()
+        
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.x = x * GRID_SIZE
+        self.rect.y = y * GRID_SIZE
+
+        self.vy = 0
+        self.vx = 0
 
     def is_near(self, other, distance=SCREEN_WIDTH):
         '''
@@ -106,10 +114,10 @@ class Entity(pygame.sprite.Sprite):
     def apply_gravity(self, level):
         self.vy += self.level.gravity
         self.vy = min(self.level.gravity, self.level.terminal_velocity)
-        
+
 class Block(Entity):
     def __init__(self, x, y, kind):
-        pass
+        super().__init__(x, y, block_types[kind])
 
 class Hero(Entity):
     def __init__(self):
@@ -227,6 +235,11 @@ class Level(Scene):
         self.completed = False
         self.paused = False
 
+        self.blocks = pygame.sprite.Group()
+
+        self.active_sprites = pygame.sprite.Group()
+        self.inactive_sprites = pygame.sprite.Group()
+
         self.load(self.level_num)
 
     def load(self, level_num):
@@ -245,9 +258,17 @@ class Level(Scene):
         self.start_x = map_data['start'][0] * GRID_SIZE
         self.start_y = map_data['start'][1] * GRID_SIZE
 
+        self.inactive_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
+        self.active_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
+
         for item in map_data['blocks']:
             x, y, kind = item[0], item[1], item[2]
             self.starting_blocks.append( Block(x, y, kind) )
+
+        self.inactive_sprites.add(self.starting_blocks)
+        self.inactive_sprites.draw(self.inactive_layer)
+
+        #self.active_sprites.add(None)
 
     def reset(self):
         pass
@@ -290,6 +311,8 @@ class Level(Scene):
     def render(self, surface):
         surface.fill(BLACK)
         if not (self.completed or self.paused):
+            surface.blit(self.inactive_layer, [0, 0])
+            
             TextUtil.display_message(surface, str(self.level_num))
 
         # special messages
