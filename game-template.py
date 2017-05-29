@@ -93,7 +93,9 @@ block_images = {"TL": ImageUtil.load_scaled_image("assets/tiles/top_left.png"),
 
 item_images = {"Coin": ImageUtil.load_scaled_image("assets/items/coin.png"),
                "Heart": ImageUtil.load_scaled_image("assets/items/bandaid.png"),
-               "OneUp": ImageUtil.load_scaled_image("assets/items/first_aid.png")}
+               "OneUp": ImageUtil.load_scaled_image("assets/items/first_aid.png"),
+               "Flag": ImageUtil.load_scaled_image("assets/items/flag.png"),
+               "Pole": ImageUtil.load_scaled_image("assets/items/flagpole.png")}
 
 hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk1.png"),
                         ImageUtil.load_scaled_image("assets/hero/adventurer_walk2.png")],
@@ -134,6 +136,11 @@ class Hero(Entity):
 
         self.speed = 5
         self.jump_power = 20
+
+        self.score = 0
+        self.lives = 3
+        self.hearts = 3
+        self.max_hearts = 3
         
     def move_left(self):
         self.vx = -self.speed
@@ -173,7 +180,7 @@ class Hero(Entity):
                 self.rect.left = block.rect.right
                 self.vx = 0
 
-        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        self.rect.y += self.vy + 1 # the +1 is hacky. not quite sure why it helps. should I round?
         hit_list = pygame.sprite.spritecollide(self, blocks, False)
 
         for block in hit_list:
@@ -185,17 +192,28 @@ class Hero(Entity):
                 self.vy = 0
 
     def process_items(self, items):
-        pass
+        hit_list = pygame.sprite.spritecollide(self, items, True)
+
+        for item in hit_list:
+            item.apply(self)
 
     def process_enemies(self, enemies):
         pass
 
+    def check_flag(self, level):
+        hit_list = pygame.sprite.spritecollide(self, level.flag, False)
+
+        if len(hit_list) > 0:
+            level.completed = True
+            #play_sound(LEVELUP_SOUND)
+    
     def update(self, level):
         self.apply_gravity(level)
         self.check_boundaries(level)
         self.move_and_process_blocks(level.blocks)
         self.process_items(level.items)
         self.process_enemies(level.enemies)
+        self.check_flag(level)
 
     def reset(self, level):
         self.rect.x = level.start_x * GRID_SIZE
@@ -239,6 +257,13 @@ class Coin(Item):
 
     def apply(self, character):
         character.score += self.value
+
+class Flag(Entity):
+    def __init__(self, image, x, y):
+        super().__init__(image, x, y)
+
+    def apply(self, character):
+        pass
 
 class Heart(Item):
     def __init__(self, image, x, y):
@@ -319,6 +344,7 @@ class Level(Scene):
 
         self.starting_blocks = []
         self.starting_items = []
+        self.starting_flag = []
 
         with open(data_file, 'r') as f:
             data = f.read()
@@ -353,8 +379,13 @@ class Level(Scene):
             elif kind == "OneUp":
                 self.starting_items.append( OneUp(img, x, y) )
 
+        for item in map_data['flag']:
+            x, y, kind = item[0], item[1], item[2]
+            img = item_images[kind]
+            self.starting_flag.append( Flag(img, x, y) )
+
         # create and draw inactive layer here since we don't need to redraw on each iteration of game loop
-        self.inactive_sprites.add(self.starting_blocks)
+        self.inactive_sprites.add(self.starting_blocks, self.starting_flag)
         self.inactive_sprites.draw(self.inactive_layer)
 
         self.setup()
@@ -362,6 +393,7 @@ class Level(Scene):
     def setup(self):
         self.hero.reset(self)
         self.blocks.add(self.starting_blocks)
+        self.flag.add(self.starting_flag)
         self.items.add(self.starting_items)
 
         self.active_sprites.add(self.hero, self.items)

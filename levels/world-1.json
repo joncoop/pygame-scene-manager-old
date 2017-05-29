@@ -36,5 +36,5 @@
 	"enemies": [[8, 4, "Bear"], [13, 8, "Bear"], [18, 2, "Monster"]],
   "items": [[4, 5, "Coin"], [16, 6, "Coin"], [18, 7, "Coin"], [20, 7, "Coin"],
 						[7, 4, "OneUp"], [18, 2, "Heart"]],
-	"flag": [[30, 5, "Top"], [30, 6, "Pole"], [30, 7, "Pole"], [30, 8, "Pole"]]
+	"flag": [[30, 5, "Flag"], [30, 6, "Pole"], [30, 7, "Pole"], [30, 8, "Pole"]]
 }
