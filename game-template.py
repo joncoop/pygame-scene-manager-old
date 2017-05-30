@@ -111,7 +111,9 @@ hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk
                "Jump": [ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png")],
                "Idle": [ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")]}
 
-monster_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-1.png")],
+monster_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-0.png"),
+                           ImageUtil.load_scaled_image("assets/enemies/bear-1.png"),
+                           ImageUtil.load_scaled_image("assets/enemies/bear-2.png")],
                   "Monster": [ImageUtil.load_scaled_image("assets/enemies/monster-1.png"),
                               ImageUtil.load_scaled_image("assets/enemies/monster-2.png")]}
 
@@ -236,6 +238,12 @@ class Enemy(Entity):
     def __init__(self, all_images, x, y):
         super().__init__(all_images[0], x, y)
 
+        self.left_images = all_images
+        self.right_images = ImageUtil.reverse_images(all_images)
+        self.current_images = self.left_images
+        self.steps = 0
+        self.image_index = 0
+        
         self.vx = -2
         self.vy = 0
         
@@ -258,7 +266,7 @@ class Enemy(Entity):
 
     def move_and_process_blocks(self, blocks):
         '''
-        Enemies turn around when colliding with blocks.
+        Enemies move and then turn around when colliding with blocks.
         '''
         self.rect.x += self.vx
         hit_list = pygame.sprite.spritecollide(self, blocks, False)
@@ -282,12 +290,25 @@ class Enemy(Entity):
                 self.rect.top = block.rect.bottom
                 self.vy = 0
 
+    def set_image(self):
+        if self.vx < 0:
+            self.current_images = self.left_images
+        else:
+            self.current_images = self.right_images
+            
+        if self.steps == 0:
+            self.image = self.current_images[self.image_index]
+            self.image_index = (self.image_index + 1) % len(self.current_images)
+
+        self.steps = (self.steps + 1) % 15 # Nothing significant about 15. It just seems to work okay.
+
     def update(self, level):
         if self.is_near(level.hero):
             self.apply_gravity(level)
             self.move_and_process_blocks(level.blocks)
             self.check_world_boundaries(level)
-
+            self.set_image()
+            
 class Bear(Enemy):
     '''
     Bears behave like default enemy. No overrides needed.
@@ -307,7 +328,8 @@ class Monster(Enemy):
         
         reverse = False
 
-        self.rect.x += self.vx
+        self.rect.x += self.vx
+
         hit_list = pygame.sprite.spritecollide(self, blocks, False)
 
         for block in hit_list:
@@ -336,7 +358,8 @@ class Monster(Enemy):
 
             elif self.vy < 0:
                 self.rect.top = block.rect.bottom
-                self.vy = 0
+                self.vy = 0
+
 
         if reverse:
             self.reverse()
@@ -356,7 +379,7 @@ class Coin(Item):
     def apply(self, character):
         character.score += self.value
 
-class Flag(Entity):
+class Flag(Item):
     def __init__(self, image, x, y):
         super().__init__(image, x, y)
 
