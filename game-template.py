@@ -61,6 +61,9 @@ class ImageUtil():
         img = pygame.image.load(file_path).convert_alpha()
         return pygame.transform.scale(img, (width, height))
 
+    def scale_to_size(width, height):
+        pass
+    
     def scale_to_height(height):
         pass
 
@@ -107,6 +110,10 @@ hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk
                         ImageUtil.load_scaled_image("assets/hero/adventurer_walk2.png")],
                "Jump": [ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png")],
                "Idle": [ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")]}
+
+monster_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-1.png")],
+                  "Monster": [ImageUtil.load_scaled_image("assets/enemies/monster-1.png"),
+                              ImageUtil.load_scaled_image("assets/enemies/monster-2.png")]}
 
 # Game entities
 class Entity(pygame.sprite.Sprite):
@@ -227,28 +234,113 @@ class Hero(Entity):
 
 class Enemy(Entity):
     def __init__(self, all_images, x, y):
-        super().__init__(all_images['Idle'][0], x, y)
+        super().__init__(all_images[0], x, y)
 
+        self.vx = -2
+        self.vy = 0
+        
     def reverse(self):
-        pass
+        '''
+        Changes the direction an enemy is moving.
+        '''
+        self.vx *= -1
 
-    def check_boundaries(self, level):
-        pass
+    def check_world_boundaries(self, level):
+        '''
+        Enemies turn around when reaching level boundaries.
+        '''
+        if self.rect.left < 0:
+            self.rect.left = 0
+            self.reverse()
+        elif self.rect.right > level.width:
+            self.rect.right = level.width
+            self.reverse()
 
     def move_and_process_blocks(self, blocks):
-        pass
+        '''
+        Enemies turn around when colliding with blocks.
+        '''
+        self.rect.x += self.vx
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        for block in hit_list:
+            if self.vx > 0:
+                self.rect.right = block.rect.left
+                self.reverse()
+            elif self.vx < 0:
+                self.rect.left = block.rect.right
+                self.reverse()
+
+        self.rect.y += self.vy # the +1 is hacky. not sure why it helps.
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        for block in hit_list:
+            if self.vy > 0:
+                self.rect.bottom = block.rect.top
+                self.vy = 0
+            elif self.vy < 0:
+                self.rect.top = block.rect.bottom
+                self.vy = 0
 
     def update(self, level):
-        pass
+        if self.is_near(level.hero):
+            self.apply_gravity(level)
+            self.move_and_process_blocks(level.blocks)
+            self.check_world_boundaries(level)
 
 class Bear(Enemy):
-    def __init__(self):
-        pass
+    '''
+    Bears behave like default enemy. No overrides needed.
+    '''
+
+    def __init__(self, all_images, x, y):
+        super().__init__(all_images, x, y)
 
 class Monster(Enemy):
-    def __init__(self):
-        pass
+    def __init__(self, all_images, x, y):
+        super().__init__(all_images, x, y)
 
+    def move_and_process_blocks(self, blocks):
+        '''
+        Monsters turn around when reaching ends of platforms.
+        '''
+        
+        reverse = False
+
+        self.rect.x += self.vx
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        for block in hit_list:
+            if self.vx > 0:
+                self.rect.right = block.rect.left
+                self.reverse()
+            elif self.vx < 0:
+                self.rect.left = block.rect.right
+                self.reverse()
+
+        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        reverse = True
+
+        for block in hit_list:
+            if self.vy >= 0:
+                self.rect.bottom = block.rect.top
+                self.vy = 0
+
+                if self.vx > 0 and self.rect.right <= block.rect.right:
+                    reverse = False
+
+                elif self.vx < 0 and self.rect.left >= block.rect.left:
+                    reverse = False
+
+            elif self.vy < 0:
+                self.rect.top = block.rect.bottom
+                self.vy = 0
+
+        if reverse:
+            self.reverse()
+            
 class Item(Entity):
     def __init__(self, image, x, y):
         super().__init__(image, x, y)
@@ -350,6 +442,7 @@ class Level(Scene):
         self.starting_blocks = []
         self.starting_items = []
         self.starting_flag = []
+        self.starting_enemies = []
 
         with open(data_file, 'r') as f:
             data = f.read()
@@ -432,9 +525,14 @@ class Level(Scene):
             img = item_images[kind]
             self.starting_flag.append( Flag(img, x, y) )
 
-        # create and draw inactive layer here since we don't need to redraw on each iteration of game loop
-        self.inactive_sprites.add(self.starting_blocks, self.starting_flag)
-        self.inactive_sprites.draw(self.inactive_layer)
+        for item in map_data['enemies']:
+            x, y, kind = item[0], item[1], item[2]
+            imgs = monster_images[kind]
+
+            if kind == "Bear":
+                self.starting_enemies.append( Bear(imgs, x, y) )
+            elif kind == "Monster":
+                self.starting_enemies.append( Monster(imgs, x, y) )
 
         self.setup()
 
@@ -443,8 +541,13 @@ class Level(Scene):
         self.blocks.add(self.starting_blocks)
         self.flag.add(self.starting_flag)
         self.items.add(self.starting_items)
-
-        self.active_sprites.add(self.hero, self.items)
+        self.enemies.add(self.starting_enemies)
+        
+        self.inactive_sprites.add(self.starting_blocks, self.starting_flag)
+        self.active_sprites.add(self.hero, self.items, self.enemies)
+        
+        # draw inactive layer here since we don't need to redraw on each iteration of game loop
+        self.inactive_sprites.draw(self.inactive_layer)
 
     def calculate_offset(self):
         x = -1 * self.hero.rect.centerx + SCREEN_WIDTH / 2
@@ -504,7 +607,8 @@ class Level(Scene):
         self.active_layer.fill(TRANSPARENT)
         self.active_sprites.draw(self.active_layer)
 
-        surface.blit(self.background_layer, [offset_x / 3, offset_y])
+        surface.blit(self.background_layer, [offset_x / 3, offset_y])
+
         surface.blit(self.scenery_layer, [offset_x / 2, offset_y])
         surface.blit(self.inactive_layer, [offset_x, offset_y])
         surface.blit(self.active_layer, [offset_x, offset_y])
