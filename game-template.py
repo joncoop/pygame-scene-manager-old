@@ -3,6 +3,7 @@
 import json
 import pygame
 
+pygame.mixer.pre_init()
 pygame.init()
 
 # Display settings
@@ -117,6 +118,14 @@ monster_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-0.pn
                   "Monster": [ImageUtil.load_scaled_image("assets/enemies/monster-1.png"),
                               ImageUtil.load_scaled_image("assets/enemies/monster-2.png")]}
 
+sound_effects = {'jump': pygame.mixer.Sound("assets/sounds/jump.wav"),
+                 'coin': pygame.mixer.Sound("assets/sounds/pickup_coin.wav"),
+                 'powerup': pygame.mixer.Sound("assets/sounds/powerup.wav"),
+                 'hurt': pygame.mixer.Sound("assets/sounds/hurt.ogg"),
+                 'die': pygame.mixer.Sound("assets/sounds/death.wav"),
+                 'levelup': pygame.mixer.Sound("assets/sounds/level_up.wav"),
+                 'gameover': pygame.mixer.Sound("assets/sounds/game_over.wav")}
+
 # Game entities
 class Entity(pygame.sprite.Sprite):
     def __init__(self, image, x=0, y=0):
@@ -173,7 +182,7 @@ class Hero(Entity):
 
         if len(hit_list) > 0:
             self.vy = -1 * self.jump_power
-            #play_sound(JUMP_SOUND)
+            SoundUtil.play_sound(sound_effects['jump'])
 
         self.rect.y -= 2
 
@@ -219,8 +228,8 @@ class Hero(Entity):
         hit_list = pygame.sprite.spritecollide(self, level.flag, False)
 
         if len(hit_list) > 0:
+            hit_list[0].apply(self)
             level.completed = True
-            #play_sound(LEVELUP_SOUND)
     
     def update(self, level):
         self.apply_gravity(level)
@@ -377,6 +386,7 @@ class Coin(Item):
         self.value = 1
 
     def apply(self, character):
+        SoundUtil.play_sound(sound_effects['coin'])
         character.score += self.value
 
 class Flag(Item):
@@ -384,13 +394,14 @@ class Flag(Item):
         super().__init__(image, x, y)
 
     def apply(self, character):
-        pass
+        SoundUtil.play_sound(sound_effects['levelup'])
 
 class Heart(Item):
     def __init__(self, image, x, y):
         super().__init__(image, x, y)
 
     def apply(self, character):
+        SoundUtil.play_sound(sound_effects['powerup'])
         character.hearts += 1
 
 class OneUp(Item):
@@ -398,6 +409,7 @@ class OneUp(Item):
         super().__init__(image, x, y)
 
     def apply(self, character):
+        SoundUtil.play_sound(sound_effects['powerup'])
         character.lives += 1
 
 # Scenes
