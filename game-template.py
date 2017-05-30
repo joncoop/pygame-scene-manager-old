@@ -460,7 +460,12 @@ class Level(Scene):
         self.level_num = level_num
         self.completed = False
         self.paused = False
-
+        
+        self.starting_blocks = []
+        self.starting_items = []
+        self.starting_flag = []
+        self.starting_enemies = []
+        
         self.blocks = pygame.sprite.Group()
         self.items = pygame.sprite.Group()
         self.enemies = pygame.sprite.Group()
@@ -473,11 +478,6 @@ class Level(Scene):
 
     def load(self):
         data_file = levels[self.level_num]
-
-        self.starting_blocks = []
-        self.starting_items = []
-        self.starting_flag = []
-        self.starting_enemies = []
 
         with open(data_file, 'r') as f:
             data = f.read()
@@ -637,13 +637,10 @@ class Level(Scene):
     def render(self, surface):
         offset_x, offset_y = self.calculate_offset()
         
-        surface.fill(BLACK)
-        
         self.active_layer.fill(TRANSPARENT)
         self.active_sprites.draw(self.active_layer)
 
         surface.blit(self.background_layer, [offset_x / 3, offset_y])
-
         surface.blit(self.scenery_layer, [offset_x / 2, offset_y])
         surface.blit(self.inactive_layer, [offset_x, offset_y])
         surface.blit(self.active_layer, [offset_x, offset_y])
