@@ -133,8 +133,8 @@ class Entity(pygame.sprite.Sprite):
 
         self.image = image
         self.rect = self.image.get_rect()
-        self.rect.x = x * GRID_SIZE
-        self.rect.y = y * GRID_SIZE
+        self.rect.x = x
+        self.rect.y = y
 
         self.vy = 0
         self.vx = 0
@@ -271,12 +271,13 @@ class Enemy(Entity):
 
         self.left_images = all_images
         self.right_images = ImageUtil.reverse_images(all_images)
-        self.current_images = self.left_images
-        self.steps = 0
-        self.image_index = 0
         
-        self.vx = -2
-        self.vy = 0
+        self.start_x = x
+        self.start_y = y
+        self.start_vx = -2
+        self.start_vy = 0
+
+        self.reset()
         
     def reverse(self):
         '''
@@ -340,6 +341,17 @@ class Enemy(Entity):
             self.check_world_boundaries(level)
             self.set_image()
             
+    def reset(self):
+        self.rect.x = self.start_x
+        self.rect.y = self.start_y
+        self.vx = self.start_vx
+        self.vy = self.start_vy
+        
+        self.current_images = self.left_images
+        self.image_index = 0
+        self.image = self.current_images[self.image_index]
+        self.steps = 0
+        
 class Bear(Enemy):
     '''
     Bears behave like default enemy. No overrides needed.
@@ -562,12 +574,18 @@ class Level(Scene):
                 self.scenery_layer.blit(scenery_img, [0, start_y])
 
         for item in map_data['blocks']:
-            x, y, kind = item[0], item[1], item[2]
+            x = item[0] * GRID_SIZE
+            y = item[1] * GRID_SIZE
+            kind = item[2]
+            
             img = block_images[kind]
             self.starting_blocks.append( Block(img, x, y) )
 
         for item in map_data['items']:
-            x, y, kind = item[0], item[1], item[2]
+            x = item[0] * GRID_SIZE
+            y = item[1] * GRID_SIZE
+            kind = item[2]
+            
             img = item_images[kind]
 
             if kind == "Coin":
@@ -578,12 +596,18 @@ class Level(Scene):
                 self.starting_items.append( OneUp(img, x, y) )
 
         for item in map_data['flag']:
-            x, y, kind = item[0], item[1], item[2]
+            x = item[0] * GRID_SIZE
+            y = item[1] * GRID_SIZE
+            kind = item[2]
+            
             img = item_images[kind]
             self.starting_flag.append( Flag(img, x, y) )
 
         for item in map_data['enemies']:
-            x, y, kind = item[0], item[1], item[2]
+            x = item[0] * GRID_SIZE
+            y = item[1] * GRID_SIZE
+            kind = item[2]
+            
             imgs = monster_images[kind]
 
             if kind == "Bear":
@@ -594,7 +618,6 @@ class Level(Scene):
         self.reset()
 
     def reset(self):
-        self.hero.reset(self.start_x, self.start_y)
         self.blocks.add(self.starting_blocks)
         self.flag.add(self.starting_flag)
         self.items.add(self.starting_items)
@@ -602,6 +625,11 @@ class Level(Scene):
         
         self.inactive_sprites.add(self.starting_blocks, self.starting_flag)
         self.active_sprites.add(self.hero, self.items, self.enemies)
+
+        self.hero.reset(self.start_x, self.start_y)
+
+        for e in self.enemies:
+            e.reset()
         
         # draw inactive layer here since we don't need to redraw on each iteration of game loop
         self.inactive_sprites.draw(self.inactive_layer)
