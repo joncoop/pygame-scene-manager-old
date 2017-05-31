@@ -16,7 +16,7 @@ GRID_SIZE = 64
 # Options
 sound_on = True
 
-# Levels
+# GameScenes
 levels = ["levels/world-1.json",
           "levels/world-2.json",
           "levels/world-3.json"]
@@ -62,13 +62,13 @@ class ImageUtil():
         img = pygame.image.load(file_path).convert_alpha()
         return pygame.transform.scale(img, (width, height))
 
-    def scale_to_size(width, height):
+    def scale_to_size(img, width, height):
         pass
     
-    def scale_to_height(height):
+    def scale_to_height(img, height):
         pass
 
-    def scale_to_width(width):
+    def scale_to_width(img, width):
         pass
     
     def reverse_image(img):
@@ -112,11 +112,11 @@ hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk
                "Jump": [ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png")],
                "Idle": [ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")]}
 
-monster_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-0.png"),
-                           ImageUtil.load_scaled_image("assets/enemies/bear-1.png"),
-                           ImageUtil.load_scaled_image("assets/enemies/bear-2.png")],
-                  "Monster": [ImageUtil.load_scaled_image("assets/enemies/monster-1.png"),
-                              ImageUtil.load_scaled_image("assets/enemies/monster-2.png")]}
+enemy_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-0.png"),
+                         ImageUtil.load_scaled_image("assets/enemies/bear-1.png"),
+                         ImageUtil.load_scaled_image("assets/enemies/bear-2.png")],
+                "Monster": [ImageUtil.load_scaled_image("assets/enemies/monster-1.png"),
+                            ImageUtil.load_scaled_image("assets/enemies/monster-2.png")]}
 
 sound_effects = {'jump': pygame.mixer.Sound("assets/sounds/jump.wav"),
                  'coin': pygame.mixer.Sound("assets/sounds/pickup_coin.wav"),
@@ -146,9 +146,9 @@ class Entity(pygame.sprite.Sprite):
         '''
         return abs(self.rect.centerx - other.rect.centerx) < distance
 
-    def apply_gravity(self, level):
-        self.vy += level.gravity
-        self.vy = min(self.vy, level.terminal_velocity)
+    def apply_gravity(self, GameScene):
+        self.vy += GameScene.gravity
+        self.vy = min(self.vy, GameScene.terminal_velocity)
 
 class Block(Entity):
     def __init__(self, image, x, y):
@@ -176,10 +176,10 @@ class Hero(Entity):
     def stop(self):
         self.vx = 0
         
-    def jump(self, level):
+    def jump(self, GameScene):
         self.rect.y += 2
 
-        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
+        hit_list = pygame.sprite.spritecollide(self, GameScene.blocks, False)
 
         if len(hit_list) > 0:
             self.vy = -1 * self.jump_power
@@ -187,11 +187,11 @@ class Hero(Entity):
 
         self.rect.y -= 2
 
-    def check_boundaries(self, level):
+    def check_boundaries(self, GameScene):
         if self.rect.left < 0:
             self.rect.left = 0
-        elif self.rect.right > level.width:
-            self.rect.right = level.width
+        elif self.rect.right > GameScene.width:
+            self.rect.right = GameScene.width
             
     def move_and_process_blocks(self, blocks):
         self.rect.x += self.vx
@@ -231,31 +231,31 @@ class Hero(Entity):
                 self.hearts -= 1
                 self.invincibility = int(0.75 * FPS)
 
-    def check_flag(self, level):
-        hit_list = pygame.sprite.spritecollide(self, level.flag, False)
+    def check_flag(self, GameScene):
+        hit_list = pygame.sprite.spritecollide(self, GameScene.flag, False)
 
         if len(hit_list) > 0:
             hit_list[0].apply(self)
-            level.completed = True
+            GameScene.completed = True
 
-    def die(self, level):
+    def die(self, GameScene):
         SoundUtil.play_sound(sound_effects['die'])
         self.lives -= 1
             
-    def update(self, level):
-        self.apply_gravity(level)
-        self.check_boundaries(level)
-        self.move_and_process_blocks(level.blocks)
+    def update(self, GameScene):
+        self.apply_gravity(GameScene)
+        self.check_boundaries(GameScene)
+        self.move_and_process_blocks(GameScene.blocks)
 
         if self.hearts > 0:
-            self.process_items(level.items)
-            self.process_enemies(level.enemies)
-            self.check_flag(level)
+            self.process_items(GameScene.items)
+            self.process_enemies(GameScene.enemies)
+            self.check_flag(GameScene)
 
             if self.invincibility > 0:
                 self.invincibility -= 1
         else:
-            self.die(level)
+            self.die(GameScene)
 
     def reset(self, x, y):
         self.rect.x = x
@@ -285,15 +285,15 @@ class Enemy(Entity):
         '''
         self.vx *= -1
 
-    def check_world_boundaries(self, level):
+    def check_world_boundaries(self, GameScene):
         '''
-        Enemies turn around when reaching level boundaries.
+        Enemies turn around when reaching GameScene boundaries.
         '''
         if self.rect.left < 0:
             self.rect.left = 0
             self.reverse()
-        elif self.rect.right > level.width:
-            self.rect.right = level.width
+        elif self.rect.right > GameScene.width:
+            self.rect.right = GameScene.width
             self.reverse()
 
     def move_and_process_blocks(self, blocks):
@@ -334,11 +334,11 @@ class Enemy(Entity):
 
         self.steps = (self.steps + 1) % 15 # Nothing significant about 15. It just seems to work okay.
 
-    def update(self, level):
-        if self.is_near(level.hero):
-            self.apply_gravity(level)
-            self.move_and_process_blocks(level.blocks)
-            self.check_world_boundaries(level)
+    def update(self, GameScene):
+        if self.is_near(GameScene.hero):
+            self.apply_gravity(GameScene)
+            self.move_and_process_blocks(GameScene.blocks)
+            self.check_world_boundaries(GameScene)
             self.set_image()
             
     def reset(self):
@@ -469,12 +469,12 @@ class Scene():
 class TitleScene(Scene):
     def __init__(self):
         super().__init__()
-        self.hero = Hero(hero_images) # Initialize a hero before starting Level scenes
+        self.hero = Hero(hero_images) # Initialize a hero before starting GameScene scenes
 
     def process_input(self, events, pressed_keys):
         for event in events:
             if event.type == pygame.KEYDOWN:
-                self.change_to_scene( Level(self.hero, 0) )
+                self.change_to_scene( GameScene(self.hero, 0) )
 
     def update(self):
         '''
@@ -486,7 +486,7 @@ class TitleScene(Scene):
         screen.fill(BLACK)
         TextUtil.display_message(screen, "Name of Game", "Ready?!!! Press any key to start.")
 
-class Level(Scene):
+class GameScene(Scene):
     def __init__(self, hero, level_num):
         super().__init__()
 
@@ -508,9 +508,9 @@ class Level(Scene):
         self.active_sprites = pygame.sprite.Group()
         self.inactive_sprites = pygame.sprite.Group()
 
-        self.load()
+        self.load_level()
 
-    def load(self):
+    def load_level(self):
         data_file = levels[self.level_num]
 
         with open(data_file, 'r') as f:
@@ -608,7 +608,7 @@ class Level(Scene):
             y = item[1] * GRID_SIZE
             kind = item[2]
             
-            imgs = monster_images[kind]
+            imgs = enemy_images[kind]
 
             if kind == "Bear":
                 self.starting_enemies.append( Bear(imgs, x, y) )
@@ -662,9 +662,9 @@ class Level(Scene):
                         self.level_num += 1
 
                         if self.level_num < len(levels):
-                            self.change_to_scene( Level(self.hero, self.level_num) )
+                            self.change_to_scene( GameScene(self.hero, self.level_num) )
                         else:
-                            self.change_to_scene( Victory(self.hero) )
+                            self.change_to_scene( VictoryScene(self.hero) )
 
                 else:
                     if event.key == pygame.K_p:
@@ -694,7 +694,7 @@ class Level(Scene):
             self.active_sprites.update(self)
 
             if self.hero.lives == 0:
-                self.change_to_scene( GameOver(self) )
+                self.change_to_scene( GameOverScene(self) )
             elif self.hero.hearts == 0:
                 self.reset()
 
@@ -716,7 +716,7 @@ class Level(Scene):
         elif self.paused:
             TextUtil.display_message(surface, "Paused", "Press 'P' to continue.")
 
-class GameOver(Scene):
+class GameOverScene(Scene):
     def __init__(self, hero):
         super().__init__(hero)
         self.hero = hero
@@ -734,7 +734,7 @@ class GameOver(Scene):
         surface.fill(BLACK)
         TextUtil.display_message(surface, "Game Over", "Press 'R' to restart.")
 
-class Victory(Scene):
+class VictoryScene(Scene):
     def __init__(self, hero):
         super().__init__()
         self.hero = hero
