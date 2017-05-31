@@ -148,7 +148,7 @@ class Entity(pygame.sprite.Sprite):
 
     def apply_gravity(self, level):
         self.vy += level.gravity
-        #self.vy = min(level.gravity, level.terminal_velocity)
+        self.vy = min(self.vy, level.terminal_velocity)
 
 class Block(Entity):
     def __init__(self, image, x, y):
@@ -165,6 +165,7 @@ class Hero(Entity):
         self.lives = 3
         self.hearts = 3
         self.max_hearts = 3
+        self.invincibility = 0
         
     def move_left(self):
         self.vx = -self.speed
@@ -222,7 +223,13 @@ class Hero(Entity):
             item.apply(self)
 
     def process_enemies(self, enemies):
-        pass
+        hit_list = pygame.sprite.spritecollide(self, enemies, False)
+
+        if self.invincibility == 0:
+            for item in hit_list:
+                SoundUtil.play_sound(sound_effects['hurt'])
+                self.hearts -= 1
+                self.invincibility = int(0.75 * FPS)
 
     def check_flag(self, level):
         hit_list = pygame.sprite.spritecollide(self, level.flag, False)
@@ -230,19 +237,34 @@ class Hero(Entity):
         if len(hit_list) > 0:
             hit_list[0].apply(self)
             level.completed = True
-    
+
+    def die(self, level):
+        SoundUtil.play_sound(sound_effects['die'])
+        self.lives -= 1
+            
     def update(self, level):
         self.apply_gravity(level)
         self.check_boundaries(level)
         self.move_and_process_blocks(level.blocks)
-        self.process_items(level.items)
-        self.process_enemies(level.enemies)
-        self.check_flag(level)
 
-    def reset(self, level):
-        self.rect.x = level.start_x * GRID_SIZE
-        self.rect.y = level.start_y * GRID_SIZE
+        if self.hearts > 0:
+            self.process_items(level.items)
+            self.process_enemies(level.enemies)
+            self.check_flag(level)
 
+            if self.invincibility > 0:
+                self.invincibility -= 1
+        else:
+            self.die(level)
+
+    def reset(self, x, y):
+        self.rect.x = x
+        self.rect.y = y
+        
+        self.hearts = self.max_hearts
+        self.invincibility = 0
+        self.facing_right = True
+        
 class Enemy(Entity):
     def __init__(self, all_images, x, y):
         super().__init__(all_images[0], x, y)
@@ -486,6 +508,12 @@ class Level(Scene):
 
         self.width = map_data['width'] * GRID_SIZE
         self.height = map_data['height'] * GRID_SIZE
+        
+        self.start_x = map_data['start'][0] * GRID_SIZE
+        self.start_y = map_data['start'][1] * GRID_SIZE
+
+        self.gravity = map_data['gravity']
+        self.terminal_velocity = map_data['terminal-velocity']
 
         self.background_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
         self.scenery_layer = pygame.Surface([self.width, self.height], pygame.SRCALPHA, 32)
@@ -532,12 +560,6 @@ class Level(Scene):
                     self.scenery_layer.blit(scenery_img, [x, start_y])
             else:
                 self.scenery_layer.blit(scenery_img, [0, start_y])
-                
-        self.gravity = map_data['gravity']
-        self.terminal_velocity = map_data['terminal-velocity']
-
-        self.start_x = map_data['start'][0]
-        self.start_y = map_data['start'][1]
 
         for item in map_data['blocks']:
             x, y, kind = item[0], item[1], item[2]
@@ -569,10 +591,10 @@ class Level(Scene):
             elif kind == "Monster":
                 self.starting_enemies.append( Monster(imgs, x, y) )
 
-        self.setup()
+        self.reset()
 
-    def setup(self):
-        self.hero.reset(self)
+    def reset(self):
+        self.hero.reset(self.start_x, self.start_y)
         self.blocks.add(self.starting_blocks)
         self.flag.add(self.starting_flag)
         self.items.add(self.starting_items)
@@ -633,6 +655,11 @@ class Level(Scene):
     def update(self):
         if not (self.completed or self.paused):
             self.active_sprites.update(self)
+
+            if self.hero.lives == 0:
+                self.change_to_scene( GameOver(self) )
+            elif self.hero.hearts == 0:
+                self.reset()
 
     def render(self, surface):
         offset_x, offset_y = self.calculate_offset()
