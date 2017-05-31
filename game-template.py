@@ -606,6 +606,15 @@ class Level(Scene):
         # draw inactive layer here since we don't need to redraw on each iteration of game loop
         self.inactive_sprites.draw(self.inactive_layer)
 
+    def display_stats(self, surface):
+        hearts_text = FONT_SM.render("Hearts: " + str(self.hero.hearts), 1, WHITE)
+        lives_text = FONT_SM.render("Lives: " + str(self.hero.lives), 1, WHITE)
+        score_text = FONT_SM.render("Score: " + str(self.hero.score), 1, WHITE)
+
+        surface.blit(score_text, (SCREEN_WIDTH - score_text.get_width() - 32, 32))
+        surface.blit(hearts_text, (32, 32))
+        surface.blit(lives_text, (32, 64))
+    
     def calculate_offset(self):
         x = -1 * self.hero.rect.centerx + SCREEN_WIDTH / 2
 
@@ -671,7 +680,8 @@ class Level(Scene):
         surface.blit(self.scenery_layer, [offset_x / 2, offset_y])
         surface.blit(self.inactive_layer, [offset_x, offset_y])
         surface.blit(self.active_layer, [offset_x, offset_y])
-
+        self.display_stats(surface)
+        
         # special messages
         if self.completed:
             TextUtil.display_message(surface, "Level complete!", "Press any key to continue.")
