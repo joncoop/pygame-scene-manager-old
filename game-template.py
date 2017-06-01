@@ -82,14 +82,26 @@ class ImageUtil():
         return pygame.transform.scale(img, (width, h))
 
     def tile_to_surface(img, surface, tile_x=True, tile_y=True):
-        if tile_x and tile_y:
-            pass
-        elif tile_x:
-            for x in range(0, surface.get_width(), img.get_width()):
-                surface.blit(img, [x, 0])
-        elif tile_y:
-            pass
-    
+        x_start = 0
+        y_start = 0
+        
+        if tile_x:
+            x_end = surface.get_width()
+        else:
+            x_end = img.get_width()
+
+        if tile_y:
+            y_end = surface.get_height()
+        else:
+            y_end = img.get_height()
+
+        x_step = img.get_width()
+        y_step = img.get_height()
+            
+        for y in range(y_start, y_end, y_step):
+            for x in range(x_start, x_end, x_step):
+                surface.blit(img, [x, y])
+
 class SoundUtil():
     def toggle_mute(self):
         global sound_on
@@ -551,22 +563,22 @@ class GameScene(Scene):
         if map_data['background-img'] != "":
             background_img = ImageUtil.load_image(map_data['background-img'])
 
-            if map_data['background-fill-y']:
+            if map_data['background-scale-to-screen-height']:
                 background_img = ImageUtil.scale_to_height(background_img, SCREEN_HEIGHT)
 
             repeat_x = map_data['background-repeat-x']
-            repeat_y = 0
+            repeat_y = map_data['background-repeat-y']
             
             ImageUtil.tile_to_surface(background_img, self.background_layer, repeat_x, repeat_y)
 
         if map_data['scenery-img'] != "":
             scenery_img = ImageUtil.load_image(map_data['scenery-img'])
 
-            if map_data['scenery-fill-y']:
+            if map_data['scenery-scale-to-screen-height']:
                 scenery_img = ImageUtil.scale_to_height(scenery_img, SCREEN_HEIGHT)
 
             repeat_x = map_data['scenery-repeat-x']
-            repeat_y = 0
+            repeat_y = map_data['scenery-repeat-y']
             
             ImageUtil.tile_to_surface(scenery_img, self.background_layer, repeat_x, repeat_y)
 
