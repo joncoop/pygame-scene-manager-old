@@ -16,7 +16,7 @@ GRID_SIZE = 64
 # Options
 sound_on = True
 
-# GameScenes
+# Level files
 levels = ["levels/world-1.json",
           "levels/world-2.json",
           "levels/world-3.json"]
@@ -146,9 +146,9 @@ class Entity(pygame.sprite.Sprite):
         '''
         return abs(self.rect.centerx - other.rect.centerx) < distance
 
-    def apply_gravity(self, GameScene):
-        self.vy += GameScene.gravity
-        self.vy = min(self.vy, GameScene.terminal_velocity)
+    def apply_gravity(self, level):
+        self.vy += level.gravity
+        self.vy = min(self.vy, level.terminal_velocity)
 
 class Block(Entity):
     def __init__(self, image, x, y):
@@ -176,10 +176,10 @@ class Hero(Entity):
     def stop(self):
         self.vx = 0
         
-    def jump(self, GameScene):
+    def jump(self, level):
         self.rect.y += 2
 
-        hit_list = pygame.sprite.spritecollide(self, GameScene.blocks, False)
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         if len(hit_list) > 0:
             self.vy = -1 * self.jump_power
@@ -187,11 +187,11 @@ class Hero(Entity):
 
         self.rect.y -= 2
 
-    def check_boundaries(self, GameScene):
+    def check_boundaries(self, level):
         if self.rect.left < 0:
             self.rect.left = 0
-        elif self.rect.right > GameScene.width:
-            self.rect.right = GameScene.width
+        elif self.rect.right > level.width:
+            self.rect.right = level.width
             
     def move_and_process_blocks(self, blocks):
         self.rect.x += self.vx
@@ -231,31 +231,31 @@ class Hero(Entity):
                 self.hearts -= 1
                 self.invincibility = int(0.75 * FPS)
 
-    def check_flag(self, GameScene):
-        hit_list = pygame.sprite.spritecollide(self, GameScene.flag, False)
+    def check_flag(self, level):
+        hit_list = pygame.sprite.spritecollide(self, level.flag, False)
 
         if len(hit_list) > 0:
             hit_list[0].apply(self)
-            GameScene.completed = True
+            level.completed = True
 
-    def die(self, GameScene):
+    def die(self):
         SoundUtil.play_sound(sound_effects['die'])
         self.lives -= 1
             
-    def update(self, GameScene):
-        self.apply_gravity(GameScene)
-        self.check_boundaries(GameScene)
-        self.move_and_process_blocks(GameScene.blocks)
+    def update(self, level):
+        self.apply_gravity(level)
+        self.check_boundaries(level)
+        self.move_and_process_blocks(level.blocks)
 
         if self.hearts > 0:
-            self.process_items(GameScene.items)
-            self.process_enemies(GameScene.enemies)
-            self.check_flag(GameScene)
+            self.process_items(level.items)
+            self.process_enemies(level.enemies)
+            self.check_flag(level)
 
             if self.invincibility > 0:
                 self.invincibility -= 1
         else:
-            self.die(GameScene)
+            self.die()
 
     def reset(self, x, y):
         self.rect.x = x
@@ -285,15 +285,15 @@ class Enemy(Entity):
         '''
         self.vx *= -1
 
-    def check_world_boundaries(self, GameScene):
+    def check_world_boundaries(self, level):
         '''
-        Enemies turn around when reaching GameScene boundaries.
+        Enemies turn around when reaching level boundaries.
         '''
         if self.rect.left < 0:
             self.rect.left = 0
             self.reverse()
-        elif self.rect.right > GameScene.width:
-            self.rect.right = GameScene.width
+        elif self.rect.right > level.width:
+            self.rect.right = level.width
             self.reverse()
 
     def move_and_process_blocks(self, blocks):
@@ -334,11 +334,11 @@ class Enemy(Entity):
 
         self.steps = (self.steps + 1) % 15 # Nothing significant about 15. It just seems to work okay.
 
-    def update(self, GameScene):
-        if self.is_near(GameScene.hero):
-            self.apply_gravity(GameScene)
-            self.move_and_process_blocks(GameScene.blocks)
-            self.check_world_boundaries(GameScene)
+    def update(self, level):
+        if self.is_near(level.hero):
+            self.apply_gravity(level)
+            self.move_and_process_blocks(level.blocks)
+            self.check_world_boundaries(level)
             self.set_image()
             
     def reset(self):
@@ -423,13 +423,6 @@ class Coin(Item):
         SoundUtil.play_sound(sound_effects['coin'])
         character.score += self.value
 
-class Flag(Item):
-    def __init__(self, image, x, y):
-        super().__init__(image, x, y)
-
-    def apply(self, character):
-        SoundUtil.play_sound(sound_effects['levelup'])
-
 class Heart(Item):
     def __init__(self, image, x, y):
         super().__init__(image, x, y)
@@ -445,6 +438,13 @@ class OneUp(Item):
     def apply(self, character):
         SoundUtil.play_sound(sound_effects['powerup'])
         character.lives += 1
+
+class Flag(Item):
+    def __init__(self, image, x, y):
+        super().__init__(image, x, y)
+
+    def apply(self, character):
+        SoundUtil.play_sound(sound_effects['levelup'])
 
 # Scenes
 class Scene():
