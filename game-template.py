@@ -221,10 +221,8 @@ class Hero(Entity):
         elif self.rect.right > level.width:
             self.rect.right = level.width
             
-    def move(self, level):
+    def apply_horizontal_movement(self, level):
         self.rect.x += self.vx
-
-        self.check_boundaries(level)
         
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
@@ -236,7 +234,10 @@ class Hero(Entity):
                 self.rect.left = block.rect.right
                 self.vx = 0
 
-        self.rect.y += self.vy + 1 # the +1 is hacky. not quite sure why it helps. should I round?
+        self.check_boundaries(level)
+
+    def apply_vertical_movement(self, level):
+        self.rect.y += self.vy + 1 # The +1 is needed for levels with gravity < 1.0.
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         for block in hit_list:
@@ -275,11 +276,13 @@ class Hero(Entity):
         
     def update(self, level):
         self.apply_gravity(level)
-        self.move(level)
+        self.apply_horizontal_movement(level)
+        self.apply_vertical_movement(level)
+
+        self.process_enemies(level.enemies)
 
         if self.hearts > 0:
             self.process_items(level.items)
-            self.process_enemies(level.enemies)
             self.check_flag(level)
 
             if self.invincibility > 0:
@@ -316,7 +319,6 @@ class Enemy(Entity):
         '''
         self.vx *= -1
         
-
     def check_boundaries(self, level):
         '''
         Enemies turn around when reaching level boundaries.
@@ -328,9 +330,9 @@ class Enemy(Entity):
             self.rect.right = level.width
             self.reverse()
 
-    def move(self, level):
+    def apply_horizontal_movement(self, level):
         '''
-        Enemies move and then turn around when colliding with blocks.
+        Enemies turn around when colliding with blocks or reaching edge of level.
         '''
         self.rect.x += self.vx
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
@@ -343,7 +345,10 @@ class Enemy(Entity):
 
             self.reverse()
 
-        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        self.check_boundaries(level)
+
+    def apply_vertical_movement(self, level):
+        self.rect.y += self.vy + 1 # The +1 is needed for levels with gravity < 1.0.
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         for block in hit_list:            
@@ -369,8 +374,8 @@ class Enemy(Entity):
     def update(self, level):
         if self.is_near(level.hero):
             self.apply_gravity(level)
-            self.check_boundaries(level)
-            self.move(level)
+            self.apply_horizontal_movement(level)
+            self.apply_vertical_movement(level)
             self.set_image()
             
     def reset(self):
@@ -396,48 +401,36 @@ class Monster(Enemy):
     def __init__(self, all_images, x, y):
         super().__init__(all_images, x, y)
 
-    def move(self, level):
+    def check_platform_edges(self, level):
         '''
-        Monsters turn around when reaching ends of platforms.
+        Turn around when reaching end of a platform
         '''
-
-        self.rect.x += self.vx
-
-        self.check_boundaries(level)
-
-        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
-
-        for block in hit_list:
-            if self.vx > 0:
-                self.rect.right = block.rect.left
-            elif self.vx < 0:
-                self.rect.left = block.rect.right
-
-            self.reverse()
-
-        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        
+        self.rect.y += 1
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         reverse = True
-
+        
         for block in hit_list:
-            if self.vy >= 0:
-                self.rect.bottom = block.rect.top
-                self.vy = 0
+            if self.vx > 0 and self.rect.right <= block.rect.right:
+                reverse = False
 
-                if self.vx > 0 and self.rect.right <= block.rect.right:
-                    reverse = False
-
-                elif self.vx < 0 and self.rect.left >= block.rect.left:
-                    reverse = False
-
-            elif self.vy < 0:
-                self.rect.top = block.rect.bottom
-                self.vy = 0
-
+            elif self.vx < 0 and self.rect.left >= block.rect.left:
+                reverse = False
+                
         if reverse:
             self.reverse()
-            
+
+        self.rect.y -= 1
+
+    def update(self, level):
+        if self.is_near(level.hero):
+            self.apply_gravity(level)
+            self.apply_horizontal_movement(level)
+            self.apply_vertical_movement(level)
+            self.check_platform_edges(level)
+            self.set_image()
+        
 class Item(Entity):
     def __init__(self, image, x, y):
         super().__init__(image, x, y)
