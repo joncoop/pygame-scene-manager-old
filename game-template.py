@@ -195,10 +195,10 @@ class Hero(Entity):
         self.max_hearts = 3
         self.invincibility = 0
         
-    def move_left(self):
+    def run_left(self):
         self.vx = -self.speed
 
-    def move_right(self):
+    def run_right(self):
         self.vx = self.speed
 
     def stop(self):
@@ -221,9 +221,12 @@ class Hero(Entity):
         elif self.rect.right > level.width:
             self.rect.right = level.width
             
-    def move_and_process_blocks(self, blocks):
+    def move(self, level):
         self.rect.x += self.vx
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+
+        self.check_boundaries(level)
+        
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         for block in hit_list:
             if self.vx > 0:
@@ -234,7 +237,7 @@ class Hero(Entity):
                 self.vx = 0
 
         self.rect.y += self.vy + 1 # the +1 is hacky. not quite sure why it helps. should I round?
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         for block in hit_list:
             if self.vy > 0:
@@ -272,8 +275,7 @@ class Hero(Entity):
         
     def update(self, level):
         self.apply_gravity(level)
-        self.check_boundaries(level)
-        self.move_and_process_blocks(level.blocks)
+        self.move(level)
 
         if self.hearts > 0:
             self.process_items(level.items)
@@ -313,8 +315,9 @@ class Enemy(Entity):
         Changes the direction an enemy is moving.
         '''
         self.vx *= -1
+        
 
-    def check_world_boundaries(self, level):
+    def check_boundaries(self, level):
         '''
         Enemies turn around when reaching level boundaries.
         '''
@@ -325,31 +328,31 @@ class Enemy(Entity):
             self.rect.right = level.width
             self.reverse()
 
-    def move_and_process_blocks(self, blocks):
+    def move(self, level):
         '''
         Enemies move and then turn around when colliding with blocks.
         '''
         self.rect.x += self.vx
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
-        for block in hit_list:
+        for block in hit_list:            
             if self.vx > 0:
                 self.rect.right = block.rect.left
-                self.reverse()
             elif self.vx < 0:
                 self.rect.left = block.rect.right
-                self.reverse()
 
-        self.rect.y += self.vy # the +1 is hacky. not sure why it helps.
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+            self.reverse()
 
-        for block in hit_list:
+        self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
+
+        for block in hit_list:            
             if self.vy > 0:
                 self.rect.bottom = block.rect.top
-                self.vy = 0
             elif self.vy < 0:
                 self.rect.top = block.rect.bottom
-                self.vy = 0
+
+            self.vy = 0
 
     def set_image(self):
         if self.vx < 0:
@@ -366,8 +369,8 @@ class Enemy(Entity):
     def update(self, level):
         if self.is_near(level.hero):
             self.apply_gravity(level)
-            self.move_and_process_blocks(level.blocks)
-            self.check_world_boundaries(level)
+            self.check_boundaries(level)
+            self.move(level)
             self.set_image()
             
     def reset(self):
@@ -393,27 +396,27 @@ class Monster(Enemy):
     def __init__(self, all_images, x, y):
         super().__init__(all_images, x, y)
 
-    def move_and_process_blocks(self, blocks):
+    def move(self, level):
         '''
         Monsters turn around when reaching ends of platforms.
         '''
-        
-        reverse = False
 
         self.rect.x += self.vx
 
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+        self.check_boundaries(level)
+
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         for block in hit_list:
             if self.vx > 0:
                 self.rect.right = block.rect.left
-                self.reverse()
             elif self.vx < 0:
                 self.rect.left = block.rect.right
-                self.reverse()
+
+            self.reverse()
 
         self.rect.y += self.vy + 1 # the +1 is hacky. not sure why it helps.
-        hit_list = pygame.sprite.spritecollide(self, blocks, False)
+        hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
         reverse = True
 
@@ -431,7 +434,6 @@ class Monster(Enemy):
             elif self.vy < 0:
                 self.rect.top = block.rect.bottom
                 self.vy = 0
-
 
         if reverse:
             self.reverse()
@@ -690,9 +692,9 @@ class GameScene(Scene):
         if not (self.completed or self.paused):
             # deal with actions bound to pressed keys
             if pressed_keys[pygame.K_LEFT]:
-                self.hero.move_left()
+                self.hero.run_left()
             elif pressed_keys[pygame.K_RIGHT]:
-                self.hero.move_right()
+                self.hero.run_right()
             else:
                 self.hero.stop()
 
