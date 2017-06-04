@@ -60,6 +60,7 @@ class ImageUtil():
 
     def load_scaled_image(file_path, width=GRID_SIZE, height=GRID_SIZE):
         img = pygame.image.load(file_path).convert_alpha()
+        
         return pygame.transform.scale(img, (width, height))
 
     def reverse_image(img):
@@ -74,11 +75,13 @@ class ImageUtil():
     def scale_to_height(img, height):
         h = img.get_height()
         w = int(img.get_width() * height / h)
+        
         return pygame.transform.scale(img, (w, height))
                 
     def scale_to_width(img, width):
         h = int(img.get_height() * width / w)
         w = img.get_width()
+        
         return pygame.transform.scale(img, (width, h))
 
     def tile_to_surface(img, surface, tile_x=True, tile_y=True):
@@ -111,7 +114,7 @@ class SoundUtil():
         if sound_on:
             sound.play(loops, maxtime, fade_ms)
 
-    def play_music(self):
+    def play_music():
         if sound_on:
             pygame.mixer.music.play(-1)
 
@@ -266,7 +269,7 @@ class Hero(Entity):
     def die(self):
         SoundUtil.play_sound(sound_effects['die'])
         self.lives -= 1
-            
+        
     def update(self, level):
         self.apply_gravity(level)
         self.check_boundaries(level)
@@ -279,7 +282,8 @@ class Hero(Entity):
 
             if self.invincibility > 0:
                 self.invincibility -= 1
-        else:
+                
+        if self.hearts <= 0:
             self.die()
 
     def reset(self, x, y):
@@ -582,19 +586,16 @@ class GameScene(Scene):
             
             ImageUtil.tile_to_surface(scenery_img, self.background_layer, repeat_x, repeat_y)
 
+        pygame.mixer.music.load(map_data['music'])
+        print(map_data['music'])
+        
         for item in map_data['blocks']:
-            x = item[0] * GRID_SIZE
-            y = item[1] * GRID_SIZE
-            kind = item[2]
-            
+            x, y, kind = item[0] * GRID_SIZE, item[1] * GRID_SIZE, item[2]
             img = block_images[kind]
             self.starting_blocks.append( Block(img, x, y) )
 
         for item in map_data['items']:
-            x = item[0] * GRID_SIZE
-            y = item[1] * GRID_SIZE
-            kind = item[2]
-            
+            x, y, kind = item[0] * GRID_SIZE, item[1] * GRID_SIZE, item[2]            
             img = item_images[kind]
 
             if kind == "Coin":
@@ -605,18 +606,12 @@ class GameScene(Scene):
                 self.starting_items.append( OneUp(img, x, y) )
 
         for item in map_data['flag']:
-            x = item[0] * GRID_SIZE
-            y = item[1] * GRID_SIZE
-            kind = item[2]
-            
+            x, y, kind = item[0] * GRID_SIZE, item[1] * GRID_SIZE, item[2]            
             img = item_images[kind]
             self.starting_flag.append( Flag(img, x, y) )
 
         for item in map_data['enemies']:
-            x = item[0] * GRID_SIZE
-            y = item[1] * GRID_SIZE
-            kind = item[2]
-            
+            x, y, kind = item[0] * GRID_SIZE, item[1] * GRID_SIZE, item[2]            
             imgs = enemy_images[kind]
 
             if kind == "Bear":
@@ -642,6 +637,9 @@ class GameScene(Scene):
         
         # draw inactive layer here since we don't need to redraw on each iteration of game loop
         self.inactive_sprites.draw(self.inactive_layer)
+
+        SoundUtil.play_music()
+        print("reset")
 
     def display_stats(self, surface):
         hearts_text = FONT_SM.render("Hearts: " + str(self.hero.hearts), 1, WHITE)
@@ -707,6 +705,9 @@ class GameScene(Scene):
             elif self.hero.hearts == 0:
                 self.reset()
 
+        elif self.completed:
+            pygame.mixer.music.stop()
+
     def render(self, surface):
         offset_x, offset_y = self.calculate_offset()
         
@@ -727,7 +728,7 @@ class GameScene(Scene):
 
 class GameOverScene(Scene):
     def __init__(self, hero):
-        super().__init__(hero)
+        super().__init__()
         self.hero = hero
 
     def process_input(self, events, pressed_keys):
