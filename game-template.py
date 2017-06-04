@@ -372,11 +372,10 @@ class Enemy(Entity):
         self.steps = (self.steps + 1) % 15 # Nothing significant about 15. It just seems to work okay.
 
     def update(self, level):
-        if self.is_near(level.hero):
-            self.apply_gravity(level)
-            self.apply_horizontal_movement(level)
-            self.apply_vertical_movement(level)
-            self.set_image()
+        self.apply_gravity(level)
+        self.apply_horizontal_movement(level)
+        self.apply_vertical_movement(level)
+        self.set_image()
             
     def reset(self):
         self.rect.x = self.start_x
@@ -403,33 +402,30 @@ class Monster(Enemy):
 
     def check_platform_edges(self, level):
         '''
-        Turn around when reaching end of a platform
+        Turn around when reaching end of a platform.
         '''
         
         self.rect.y += 1
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
-        reverse = True
+        if len(hit_list) > 0:
+            reverse = True
         
-        for block in hit_list:
-            if self.vx > 0 and self.rect.right <= block.rect.right:
-                reverse = False
+            for block in hit_list:
+                if self.vx > 0 and self.rect.right <= block.rect.right:
+                    reverse = False
 
-            elif self.vx < 0 and self.rect.left >= block.rect.left:
-                reverse = False
-                
-        if reverse:
-            self.reverse()
+                elif self.vx < 0 and self.rect.left >= block.rect.left:
+                    reverse = False
+
+            if reverse:
+                self.reverse()
 
         self.rect.y -= 1
 
     def update(self, level):
-        if self.is_near(level.hero):
-            self.apply_gravity(level)
-            self.apply_horizontal_movement(level)
-            self.apply_vertical_movement(level)
-            self.check_platform_edges(level)
-            self.set_image()
+        self.check_platform_edges(level)
+        super().update(level)
         
 class Item(Entity):
     def __init__(self, image, x, y):
@@ -693,7 +689,10 @@ class GameScene(Scene):
 
     def update(self):
         if not (self.completed or self.paused):
-            self.active_sprites.update(self)
+            nearby_sprites = [s for s in self.active_sprites if s.is_near(self.hero)]
+
+            for s in nearby_sprites:
+                s.update(self)
 
             if self.hero.lives == 0:
                 self.change_to_scene( GameOverScene(self) )
