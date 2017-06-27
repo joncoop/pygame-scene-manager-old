@@ -758,15 +758,14 @@ class VictoryScene(Scene):
 
 # The actual game
 class MyGame():
-    def __init__(self):
-        self.active_scene = TitleScene()
+    def __init__(self, start_scene):
+        self.active_scene = start_scene
 
     def is_quit_event(self, event, pressed_keys):
         x_out = event.type == pygame.QUIT
 
         ctrl_q = (event.type == pygame.KEYDOWN and
-                  event.key == pygame.K_q and
-                  (pressed_keys[pygame.K_LCTRL] or pressed_keys[pygame.K_RCTRL]))
+                  event.key == pygame.K_q and (pressed_keys[pygame.K_LCTRL] or pressed_keys[pygame.K_RCTRL]))
 
         return x_out or ctrl_q
 
@@ -789,13 +788,11 @@ class MyGame():
             self.active_scene.render(screen)
             self.active_scene = self.active_scene.next_scene
 
-            # update screen
+            # update screen and wait a bit
             pygame.display.flip()
-
-            # wait a bit
             clock.tick(FPS)
 
 if __name__ == "__main__":
-    game = MyGame()
+    game = MyGame( TitleScene() )
     game.run()
     pygame.quit()
