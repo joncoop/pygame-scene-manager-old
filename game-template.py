@@ -135,10 +135,10 @@ item_images = {"Coin": ImageUtil.load_scaled_image("assets/items/coin.png"),
                "Flag": ImageUtil.load_scaled_image("assets/items/flag.png"),
                "Pole": ImageUtil.load_scaled_image("assets/items/flagpole.png")}
 
-hero_images = {"Walk": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk1.png"),
+hero_images = {"run": [ImageUtil.load_scaled_image("assets/hero/adventurer_walk1.png"),
                         ImageUtil.load_scaled_image("assets/hero/adventurer_walk2.png")],
-               "Jump": [ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png")],
-               "Idle": [ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")]}
+               "jump": ImageUtil.load_scaled_image("assets/hero/adventurer_jump.png"),
+               "idle": ImageUtil.load_scaled_image("assets/hero/adventurer_idle.png")}
 
 enemy_images = {"Bear": [ImageUtil.load_scaled_image("assets/enemies/bear-0.png"),
                          ImageUtil.load_scaled_image("assets/enemies/bear-1.png"),
@@ -184,11 +184,25 @@ class Block(Entity):
 
 class Hero(Entity):
     def __init__(self, all_images):
-        super().__init__(all_images['Idle'][0])
+        super().__init__(all_images['idle'])
+
+        self.image_idle_right = all_images['idle']
+        self.image_idle_left = ImageUtil.reverse_image(self.image_idle_right)
+        self.images_run_right = all_images['run']
+        self.images_run_left = ImageUtil.reverse_images(self.images_run_right)
+        self.image_jump_right = all_images['jump']
+        self.image_jump_left = ImageUtil.reverse_image(self.image_jump_right)
+        
+        self.running_images = self.images_run_right
+        self.run_index = 0
+        self.steps = 0
 
         self.speed = 5
         self.jump_power = 20
 
+        self.facing_right = True
+        self.on_ground = True
+    
         self.score = 0
         self.lives = 3
         self.hearts = 3
@@ -197,9 +211,11 @@ class Hero(Entity):
         
     def run_left(self):
         self.vx = -self.speed
+        self.facing_right = False
 
     def run_right(self):
         self.vx = self.speed
+        self.facing_right = True
 
     def stop(self):
         self.vx = 0
@@ -237,6 +253,8 @@ class Hero(Entity):
         self.check_boundaries(level)
 
     def apply_vertical_movement(self, level):
+        self.on_ground = False
+        
         self.rect.y += self.vy + 1 # The +1 is needed for levels with gravity < 1.0.
         hit_list = pygame.sprite.spritecollide(self, level.blocks, False)
 
@@ -244,6 +262,7 @@ class Hero(Entity):
             if self.vy > 0:
                 self.rect.bottom = block.rect.top
                 self.vy = 0
+                self.on_ground = True
             elif self.vy < 0:
                 self.rect.top = block.rect.bottom
                 self.vy = 0
@@ -274,11 +293,36 @@ class Hero(Entity):
         SoundUtil.play_sound(sound_effects['die'])
         self.lives -= 1
         
+    def set_image(self):
+        if self.on_ground:
+            if self.vx != 0:
+                if self.facing_right:
+                    self.running_images = self.images_run_right
+                else:
+                    self.running_images = self.images_run_left
+
+                self.steps = (self.steps + 1) % self.speed # Works well with 2 images, try lower number if more frames are in animation
+
+                if self.steps == 0:
+                    self.run_index = (self.run_index + 1) % len(self.running_images)
+                    self.image = self.running_images[self.run_index]
+            else:
+                if self.facing_right:
+                    self.image = self.image_idle_right
+                else:
+                    self.image = self.image_idle_left
+        else:
+            if self.facing_right:
+                self.image = self.image_jump_right
+            else:
+                self.image = self.image_jump_left
+                
     def update(self, level):
         self.apply_gravity(level)
         self.apply_horizontal_movement(level)
         self.apply_vertical_movement(level)
-
+        self.set_image()
+        
         self.process_enemies(level.enemies)
 
         if self.hearts > 0:
@@ -732,6 +776,9 @@ class GameOverScene(Scene):
                     self.change_to_scene( TitleScene() )
 
     def update(self):
+        '''
+        Use this if the GameOverScene is animated.
+        '''
         pass
 
     def render(self, surface):
@@ -750,6 +797,9 @@ class VictoryScene(Scene):
                     self.change_to_scene( TitleScene() )
 
     def update(self):
+        '''
+        Use this if the VictoryScene is animated.
+        '''
         pass
 
     def render(self, surface):
